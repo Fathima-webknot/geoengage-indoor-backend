@@ -58,3 +58,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+firebase_key.json
+google-services.json
