@@ -14,7 +14,7 @@ router = APIRouter(tags=["User (Android)"], prefix="")
     "/event",
     response_model=dict,
     summary="Zone entry event",
-    description="Log zone entry and trigger FCM if active campaign. Use zone_id or (zone_name + floor_id).",
+    description="Log zone entry and trigger FCM if active campaign. Use zone_id (UUID string) or (zone_name + floor_id).",
 )
 def post_event(
     body: EventRequest,

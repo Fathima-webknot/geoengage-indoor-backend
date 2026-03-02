@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -14,17 +16,21 @@ router = APIRouter(tags=["Admin (Web)"], prefix="/campaigns")
     "",
     response_model=CampaignResponse,
     summary="Create campaign",
-    description="Create a new campaign for a zone.",
+    description="Create a new campaign for a zone (zone_id = UUID string).",
 )
 def create(
     body: CampaignCreate,
     admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    c = create_campaign(db, body.zone_id, body.message)
+    try:
+        zone_uuid = uuid.UUID(body.zone_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
+    c = create_campaign(db, zone_uuid, body.message)
     return CampaignResponse(
         id=c.id,
-        zone_id=c.zone_id,
+        zone_id=str(c.zone_id),
         message=c.message,
         active=c.active,
         created_at=c.created_at.isoformat(),
@@ -48,7 +54,7 @@ def update(
         raise HTTPException(status_code=404, detail="Campaign not found")
     return CampaignResponse(
         id=c.id,
-        zone_id=c.zone_id,
+        zone_id=str(c.zone_id),
         message=c.message,
         active=c.active,
         created_at=c.created_at.isoformat(),
@@ -59,18 +65,24 @@ def update(
     "",
     response_model=list[CampaignResponse],
     summary="List campaigns",
-    description="Optional filter by zone_id.",
+    description="Optional filter by zone_id (UUID string).",
 )
 def list_all(
-    zone_id: int | None = None,
+    zone_id: str | None = None,
     admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    campaigns = list_campaigns(db, zone_id)
+    zone_uuid = None
+    if zone_id is not None and zone_id.strip() != "":
+        try:
+            zone_uuid = uuid.UUID(zone_id)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
+    campaigns = list_campaigns(db, zone_uuid)
     return [
         CampaignResponse(
             id=c.id,
-            zone_id=c.zone_id,
+            zone_id=str(c.zone_id),
             message=c.message,
             active=c.active,
             created_at=c.created_at.isoformat(),

@@ -11,7 +11,7 @@ router = APIRouter(tags=["Optional"], prefix="")
 @router.get(
     "/zones",
     summary="List zones",
-    description="All zones with polygon coordinates. Optional floor_id filter.",
+    description="All zones. Optional floor_id (floor number) filter.",
 )
 def list_zones(
     floor_id: int | None = None,
@@ -24,10 +24,9 @@ def list_zones(
     zones = q.all()
     return [
         {
-            "id": z.id,
+            "id": str(z.id),
             "floor_id": z.floor_id,
             "name": z.name,
-            "polygon_coordinates": z.polygon_coordinates,
         }
         for z in zones
     ]
