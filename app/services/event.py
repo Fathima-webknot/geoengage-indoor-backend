@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Event, Campaign, Notification, User, Zone
+from app.db.models import Event, Campaign, Notification, User, Zone, Floor
 from app.core.fcm import send_fcm_to_token
 
 
@@ -27,6 +27,29 @@ def _resolve_zone(
     return None
 
 
+def send_floor_entry_notification(
+    db: Session,
+    user_id: int,
+    floor_id: int,
+) -> tuple[bool, bool, str | None]:
+    """Send floor entry notification without saving to database."""
+    floor = db.query(Floor).filter(Floor.floor_id == floor_id).first()
+    if not floor:
+        return False, False, None
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.fcm_token:
+        return True, False, None
+
+    message = f"Welcome to {floor.floor_name}!"
+    try:
+        send_fcm_to_token(user.fcm_token, "GeoEngage", message)
+        return True, True, message
+    except Exception as e:
+        print(f"Failed to send floor notification: {e}")
+        return True, False, None
+
+
 def record_event_and_maybe_notify(
     db: Session,
     user_id: int,
@@ -34,6 +57,7 @@ def record_event_and_maybe_notify(
     zone_name: str | None = None,
     floor_id: int | None = None,
 ) -> tuple[bool, bool, str | None]:
+    """Handle zone entry with campaign notification and database record."""
     zone = _resolve_zone(db, zone_id, zone_name, floor_id)
     if zone is None:
         return False, False, None
