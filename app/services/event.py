@@ -78,22 +78,37 @@ def record_event_and_maybe_notify(
     if not user or not user.fcm_token:
         return True, False, None
 
+    # Create notification record first to get ID
+    notif = Notification(
+        user_id=user_id,
+        campaign_id=campaign.id,
+        status="failed",
+        fcm_message_id=None,
+    )
+    db.add(notif)
+    db.commit()
+    db.refresh(notif)
+
+    # Prepare data payload for FCM
+    fcm_data = {
+        "campaign_id": str(campaign.id),
+        "notification_id": str(notif.id),
+        "zone_name": zone.name,
+        "type": "zone_entry"
+    }
+
     status = "failed"
     fcm_message_id = None
     try:
         fcm_message_id = send_fcm_to_token(
-            user.fcm_token, "GeoEngage", campaign.message
+            user.fcm_token, "GeoEngage", campaign.message, data=fcm_data
         )
         status = "sent"
     except Exception:
         pass
 
-    notif = Notification(
-        user_id=user_id,
-        campaign_id=campaign.id,
-        status=status,
-        fcm_message_id=fcm_message_id,
-    )
-    db.add(notif)
+    # Update notification with FCM result
+    notif.status = status
+    notif.fcm_message_id = fcm_message_id
     db.commit()
     return True, status == "sent", campaign.message
