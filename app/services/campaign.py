@@ -35,3 +35,12 @@ def list_campaigns(
     if zone_id is not None:
         q = q.filter(Campaign.zone_id == zone_id)
     return list(q.all())
+
+
+def delete_campaign(db: Session, campaign_id: int) -> bool:
+    c = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not c:
+        return False
+    db.delete(c)
+    db.commit()
+    return True

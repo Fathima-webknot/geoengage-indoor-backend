@@ -7,7 +7,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.db.models import Campaign
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignResponse
-from app.services.campaign import create_campaign, set_campaign_active, list_campaigns
+from app.services.campaign import create_campaign, set_campaign_active, list_campaigns, delete_campaign
 
 router = APIRouter(tags=["Admin (Web)"], prefix="/campaigns")
 
@@ -89,3 +89,19 @@ def list_all(
         )
         for c in campaigns
     ]
+
+
+@router.delete(
+    "/{campaign_id}",
+    summary="Delete campaign",
+    description="Delete a specific campaign by ID.",
+)
+def delete(
+    campaign_id: int,
+    admin=Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    success = delete_campaign(db, campaign_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return {"success": True, "message": "Campaign deleted successfully"}
