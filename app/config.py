@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/geoengage"
     firebase_credentials_path: str | None = None
     cors_origins: list[str] = ["*"]
-    rate_limit_per_minute: int = 100
+    rate_limit_per_minute: int = 5000
 
     @field_validator("cors_origins", mode="before")
     @classmethod

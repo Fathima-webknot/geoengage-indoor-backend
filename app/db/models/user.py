@@ -19,3 +19,5 @@ class User(Base):
 
     events = relationship("Event", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
+    transactions = relationship("Transaction", back_populates="user")
+    zone_session = relationship("UserZoneSession", back_populates="user", uselist=False)
