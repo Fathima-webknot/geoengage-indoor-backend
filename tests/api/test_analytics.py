@@ -5,15 +5,11 @@ from app.db.models import Floor, Zone
 
 @pytest.fixture
 def floor_zone(db):
-    floor = Floor(name="Ground", floor_number=0)
+    floor = Floor(floor_id=0, floor_name="Ground")
     db.add(floor)
     db.commit()
     db.refresh(floor)
-    zone = Zone(
-        floor_id=floor.id,
-        name="Pantry",
-        polygon_coordinates=[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]],
-    )
+    zone = Zone(floor_id=0, name="Pantry")
     db.add(zone)
     db.commit()
     db.refresh(zone)
