@@ -26,3 +26,5 @@ class Zone(Base):
     floor = relationship("Floor", back_populates="zones")
     campaigns = relationship("Campaign", back_populates="zone")
     events = relationship("Event", back_populates="zone")
+    transactions = relationship("Transaction", back_populates="zone")
+    user_sessions = relationship("UserZoneSession", back_populates="zone")

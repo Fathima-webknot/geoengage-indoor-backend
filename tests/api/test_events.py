@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.db.models import Floor, Zone
+from app.db.models import Floor, Zone, Campaign
 
 
 @pytest.fixture
@@ -62,3 +62,110 @@ def test_post_event_unauthorized(client, floor_zone):
         json={"zone_id": str(zone.id), "zone_name": "Pantry", "floor_id": 0},
     )
     assert r.status_code == 403  # no Authorization header
+
+
+def test_zone_exit_without_transaction_triggers_exit_campaign(client, floor_zone, db):
+    _, zone = floor_zone
+
+    # Create active entry and exit campaigns
+    entry_campaign = Campaign(
+        zone_id=zone.id,
+        message="Entry",
+        trigger="zone_entry",
+        active=True,
+    )
+    exit_campaign = Campaign(
+        zone_id=zone.id,
+        message="Exit no txn",
+        trigger="zone_exit_no_txn",
+        active=True,
+    )
+    db.add(entry_campaign)
+    db.add(exit_campaign)
+    db.commit()
+
+    with patch("app.services.event.send_fcm_to_token", return_value="msg-123"):
+        # Entry
+        r_entry = client.post(
+            "/api/v1/event",
+            json={
+                "event_type": "zone_entry",
+                "zone_id": str(zone.id),
+                "zone_name": "Pantry",
+                "floor_id": 0,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+        assert r_entry.status_code == 200
+
+        # Exit without transaction
+        r_exit = client.post(
+            "/api/v1/event",
+            json={
+                "event_type": "zone_exit",
+                "zone_id": str(zone.id),
+                "zone_name": "Pantry",
+                "floor_id": 0,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert r_exit.status_code == 200
+    data = r_exit.json()
+    assert data["success"] is True
+    assert data["notification_sent"] is True
+    assert "campaign_message" in data
+
+
+def test_zone_exit_after_transaction_does_not_trigger_exit_campaign(client, floor_zone, db):
+    _, zone = floor_zone
+
+    exit_campaign = Campaign(
+        zone_id=zone.id,
+        message="Exit no txn",
+        trigger="zone_exit_no_txn",
+        active=True,
+    )
+    db.add(exit_campaign)
+    db.commit()
+
+    with patch("app.services.event.send_fcm_to_token", return_value="msg-123"):
+        # Entry
+        r_entry = client.post(
+            "/api/v1/event",
+            json={
+                "event_type": "zone_entry",
+                "zone_id": str(zone.id),
+                "zone_name": "Pantry",
+                "floor_id": 0,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+        assert r_entry.status_code == 200
+
+        # Record transaction
+        r_txn = client.post(
+            "/api/v1/transactions",
+            json={
+                "zone_id": str(zone.id),
+                "zone_name": "Pantry",
+                "floor_id": 0,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+        assert r_txn.status_code == 200
+
+        # Exit
+        r_exit = client.post(
+            "/api/v1/event",
+            json={
+                "event_type": "zone_exit",
+                "zone_id": str(zone.id),
+                "zone_name": "Pantry",
+                "floor_id": 0,
+            },
+            headers={"Authorization": "Bearer test-token"},
+        )
+    assert r_exit.status_code == 200
+    data = r_exit.json()
+    assert data["success"] is True
+    assert data["notification_sent"] is False
