@@ -27,12 +27,20 @@ def create(
         zone_uuid = uuid.UUID(body.zone_id)
     except (ValueError, TypeError):
         raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
-    c = create_campaign(db, zone_uuid, body.message)
+    c = create_campaign(
+        db,
+        zone_uuid,
+        body.message,
+        trigger=body.trigger,
+        name=body.name,
+    )
     return CampaignResponse(
         id=c.id,
         zone_id=str(c.zone_id),
         message=c.message,
+        name=c.name,
         active=c.active,
+        trigger=c.trigger,
         created_at=c.created_at.isoformat(),
     )
 
@@ -56,7 +64,9 @@ def update(
         id=c.id,
         zone_id=str(c.zone_id),
         message=c.message,
+        name=c.name,
         active=c.active,
+        trigger=c.trigger,
         created_at=c.created_at.isoformat(),
     )
 
@@ -65,10 +75,11 @@ def update(
     "",
     response_model=list[CampaignResponse],
     summary="List campaigns",
-    description="Optional filter by zone_id (UUID string).",
+    description="Optional filter by zone_id (UUID string) and trigger.",
 )
 def list_all(
     zone_id: str | None = None,
+    trigger: str | None = None,
     admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -78,13 +89,15 @@ def list_all(
             zone_uuid = uuid.UUID(zone_id)
         except (ValueError, TypeError):
             raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
-    campaigns = list_campaigns(db, zone_uuid)
+    campaigns = list_campaigns(db, zone_uuid, trigger)
     return [
         CampaignResponse(
             id=c.id,
             zone_id=str(c.zone_id),
             message=c.message,
+            name=c.name,
             active=c.active,
+            trigger=c.trigger,
             created_at=c.created_at.isoformat(),
         )
         for c in campaigns

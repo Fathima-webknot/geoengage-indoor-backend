@@ -2,7 +2,12 @@ from pydantic import BaseModel, model_validator
 
 
 class EventRequest(BaseModel):
-    event_type: str = "zone"  # "zone" or "floor"
+    # Supported values:
+    # - "floor"
+    # - "zone" (treated as "zone_entry" for backward compatibility)
+    # - "zone_entry"
+    # - "zone_exit"
+    event_type: str = "zone"
     zone_id: str | None = None
     zone_name: str | None = None
     floor_id: int | None = None
@@ -14,13 +19,22 @@ class EventRequest(BaseModel):
             if self.floor_id is None:
                 raise ValueError("floor_id is required for floor events")
             return self
-        
-        # Zone entry: needs zone_id OR (zone_name + floor_id)
-        if self.event_type == "zone":
+
+        # Normalize legacy "zone" to "zone_entry" semantics for validation purposes
+        normalized_type = (
+            "zone_entry" if self.event_type == "zone" else self.event_type
+        )
+
+        # Zone entry / exit: needs zone_id OR (zone_name + floor_id)
+        if normalized_type in ("zone_entry", "zone_exit"):
             if self.zone_id is not None and self.zone_id != "":
                 return self
             if self.zone_name is not None and self.floor_id is not None:
                 return self
-            raise ValueError("For zone events: provide zone_id OR (zone_name + floor_id)")
-        
-        raise ValueError("event_type must be 'floor' or 'zone'")
+            raise ValueError(
+                "For zone events: provide zone_id OR (zone_name + floor_id)"
+            )
+
+        raise ValueError(
+            "event_type must be one of: 'floor', 'zone', 'zone_entry', 'zone_exit'"
+        )
