@@ -5,22 +5,26 @@ Uses DATABASE_URL and app models. Run from project root:
 """
 import os
 import sys
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
 from app.db.base import Base
-from app.db.models import Floor, Zone
+from app.db.models import User, Floor, Zone, Campaign, Event, Notification
+
 
 def main():
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    
-    # 1) Create all tables (idempotent; safe if they exist)
+
+    # 1) Drop all tables then create from current models (fresh schema)
+    Base.metadata.drop_all(bind=engine)
+    print("Dropped existing tables.")
     Base.metadata.create_all(bind=engine)
-    print("Tables created or already exist.")
+    print("Tables created.")
 
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = Session()
@@ -30,49 +34,18 @@ def main():
             print("Floors already exist. Skip seed.")
             return
 
-        # 3) Static floors
-        ground = Floor(name="Ground Floor", floor_number=0)
-        first = Floor(name="First Floor", floor_number=1)
+        # 3) Static floors (floor_id = floor number, floor_name only)
+        ground = Floor(floor_id=0, floor_name="Ground Floor")
+        first = Floor(floor_id=1, floor_name="First Floor")
         db.add_all([ground, first])
         db.commit()
-        db.refresh(ground)
-        db.refresh(first)
 
-        # 4) Static zones (polygon format: [[lng, lat], ...] – example coords)
+        # 4) Static zones (id=UUID, floor_id=floor number, name; no polygon_coordinates)
         zones = [
-            Zone(
-                floor_id=ground.id,
-                name="Pantry",
-                polygon_coordinates=[
-                    [77.5946, 12.9716],
-                    [77.5948, 12.9716],
-                    [77.5948, 12.9714],
-                    [77.5946, 12.9714],
-                    [77.5946, 12.9716],
-                ],
-            ),
-            Zone(
-                floor_id=ground.id,
-                name="Meeting Room A",
-                polygon_coordinates=[
-                    [77.5950, 12.9716],
-                    [77.5952, 12.9716],
-                    [77.5952, 12.9714],
-                    [77.5950, 12.9714],
-                    [77.5950, 12.9716],
-                ],
-            ),
-            Zone(
-                floor_id=ground.id,
-                name="Conference Hall",
-                polygon_coordinates=[
-                    [77.5954, 12.9716],
-                    [77.5958, 12.9716],
-                    [77.5958, 12.9712],
-                    [77.5954, 12.9712],
-                    [77.5954, 12.9716],
-                ],
-            ),
+            Zone(id=uuid.uuid4(), floor_id=0, name="Pantry"),
+            Zone(id=uuid.uuid4(), floor_id=0, name="Meeting Room A"),
+            Zone(id=uuid.uuid4(), floor_id=0, name="Conference Hall"),
+            Zone(id=uuid.uuid4(), floor_id=1, name="Webknot 2nd floor"),
         ]
         db.add_all(zones)
         db.commit()

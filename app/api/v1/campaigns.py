@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -5,7 +7,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.db.models import Campaign
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignResponse
-from app.services.campaign import create_campaign, set_campaign_active, list_campaigns
+from app.services.campaign import create_campaign, set_campaign_active, list_campaigns, delete_campaign
 
 router = APIRouter(tags=["Admin (Web)"], prefix="/campaigns")
 
@@ -14,19 +16,31 @@ router = APIRouter(tags=["Admin (Web)"], prefix="/campaigns")
     "",
     response_model=CampaignResponse,
     summary="Create campaign",
-    description="Create a new campaign for a zone.",
+    description="Create a new campaign for a zone (zone_id = UUID string).",
 )
 def create(
     body: CampaignCreate,
     admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    c = create_campaign(db, body.zone_id, body.message)
+    try:
+        zone_uuid = uuid.UUID(body.zone_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
+    c = create_campaign(
+        db,
+        zone_uuid,
+        body.message,
+        trigger=body.trigger,
+        name=body.name,
+    )
     return CampaignResponse(
         id=c.id,
-        zone_id=c.zone_id,
+        zone_id=str(c.zone_id),
         message=c.message,
+        name=c.name,
         active=c.active,
+        trigger=c.trigger,
         created_at=c.created_at.isoformat(),
     )
 
@@ -48,9 +62,11 @@ def update(
         raise HTTPException(status_code=404, detail="Campaign not found")
     return CampaignResponse(
         id=c.id,
-        zone_id=c.zone_id,
+        zone_id=str(c.zone_id),
         message=c.message,
+        name=c.name,
         active=c.active,
+        trigger=c.trigger,
         created_at=c.created_at.isoformat(),
     )
 
@@ -59,21 +75,46 @@ def update(
     "",
     response_model=list[CampaignResponse],
     summary="List campaigns",
-    description="Optional filter by zone_id.",
+    description="Optional filter by zone_id (UUID string) and trigger.",
 )
 def list_all(
-    zone_id: int | None = None,
+    zone_id: str | None = None,
+    trigger: str | None = None,
     admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    campaigns = list_campaigns(db, zone_id)
+    zone_uuid = None
+    if zone_id is not None and zone_id.strip() != "":
+        try:
+            zone_uuid = uuid.UUID(zone_id)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="Invalid zone_id UUID")
+    campaigns = list_campaigns(db, zone_uuid, trigger)
     return [
         CampaignResponse(
             id=c.id,
-            zone_id=c.zone_id,
+            zone_id=str(c.zone_id),
             message=c.message,
+            name=c.name,
             active=c.active,
+            trigger=c.trigger,
             created_at=c.created_at.isoformat(),
         )
         for c in campaigns
     ]
+
+
+@router.delete(
+    "/{campaign_id}",
+    summary="Delete campaign",
+    description="Delete a specific campaign by ID.",
+)
+def delete(
+    campaign_id: int,
+    admin=Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    success = delete_campaign(db, campaign_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return {"success": True, "message": "Campaign deleted successfully"}

@@ -8,8 +8,8 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 
-class Event(Base):
-    __tablename__ = "events"
+class Transaction(Base):
+    __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
@@ -18,9 +18,10 @@ class Event(Base):
     zone_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("zones.id", ondelete="CASCADE"), nullable=False
     )
-    entered_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    user = relationship("User", back_populates="events")
-    zone = relationship("Zone", back_populates="events")
+    user = relationship("User", back_populates="transactions")
+    zone = relationship("Zone", back_populates="transactions")
+

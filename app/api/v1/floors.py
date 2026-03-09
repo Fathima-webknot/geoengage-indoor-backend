@@ -11,7 +11,7 @@ router = APIRouter(tags=["Optional"], prefix="")
 @router.get(
     "/floors",
     summary="List floors",
-    description="All floors in venue.",
+    description="All floors in venue (floor_id = floor number, floor_name).",
 )
 def list_floors(
     current_user=Depends(get_current_user),
@@ -19,6 +19,6 @@ def list_floors(
 ):
     floors = db.query(Floor).all()
     return [
-        {"id": f.id, "name": f.name, "floor_number": f.floor_number}
+        {"floor_id": f.floor_id, "floor_name": f.floor_name}
         for f in floors
     ]

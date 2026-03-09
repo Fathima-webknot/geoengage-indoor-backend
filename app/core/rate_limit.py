@@ -9,4 +9,4 @@ def get_identifier(request):
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=get_identifier, default_limits=["100/minute"])
+limiter = Limiter(key_func=get_identifier, default_limits=["120000/minute"])
